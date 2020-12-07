@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include <sstream>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -9,10 +9,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 //46.147.148.254    192.168.0.101 
-
+enum {BACKLOG = 10}; // how many pending connections queue will hold
 const char *PORT = "7707";  // the port users will be connecting to
 const int BUFSIZE = 4096;
-const int BACKLOG = 10;     // how many pending connections queue will hold
 const char* GET = "GET / HTTP/1.1\r\n";
 const char* OK = "HTTP/1.1 200 OK\r\n\r\n";
 const char* NOT_FOUND = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
@@ -27,15 +26,14 @@ const char * ReqAnalyse(char *request){
 		char *begin = strtok(request, "/");
 		char *reqw = strtok(NULL, " ");
 
-		printf ("ReqAnalyse : %s\n", reqw);		
+		//printf ("ReqAnalyse : %s\n", reqw);		
 
 		begin = strtok(reqw, "=");
 		reqw = strtok (NULL, "\0");
 
-		printf ("ReqAnalyse : %s\n", reqw);
+		//printf ("ReqAnalyse : %s\n", reqw);
 
-		if (strcmp(reqw, "FRKT") == 0){
-			printf ("!!!");
+		/*if (strcmp(reqw, "FRKT") == 0){
 			if ((fd = open ("Html/FRKT.html", O_RDONLY)) < 0)
 				perror ("open");
 		}
@@ -49,7 +47,7 @@ const char * ReqAnalyse(char *request){
 		if (fd == -1){
 			strcat(response, NOT_FOUND);
 			return response;
-		}
+		}*/
 
 		strcat(response, OK);
 
@@ -69,51 +67,51 @@ const char * ReqAnalyse(char *request){
 void StartServer()
 {
 
-	struct addrinfo hints, *addrlist, *curaddr;
+	struct addrinfo hints, *addrlist = (struct addrinfo *)malloc(sizeof(struct addrinfo)), *curaddr;
 	
 	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
     hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
     hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
     hints.ai_protocol = 0;          /* Any protocol */
-    hints.ai_canonname = NULL;
-    hints.ai_addr = NULL;
-    hints.ai_next = NULL;
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
 
-     if (getaddrinfo(NULL, PORT, &hints, &addrlist) != 0) {
-        perror("getaddrinfo");
-        exit(EXIT_FAILURE);
-    }
-
-    for (curaddr = addrlist; curaddr != NULL; addrlist = addrlist->ai_next){
-    	listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    	if (listenfd < 0){
-    		perror ("socket");
-    		continue;
-    	}
-    	if (bind(listenfd, curaddr->ai_addr, curaddr->ai_addrlen) == 0)
-    		break;
+	if (getaddrinfo(NULL, PORT, &hints, &addrlist) != 0) {
+		perror("getaddrinfo");
+		exit(EXIT_FAILURE);
 	}
 
-    if (curaddr == NULL){
-    	perror("bind");
-    	exit(EXIT_FAILURE);
-    }
+	for (curaddr = addrlist; curaddr != NULL; addrlist = addrlist->ai_next){
+		listenfd = socket(AF_INET, SOCK_STREAM, 0);
+		if (listenfd < 0){
+			perror ("socket");
+			continue;
+		}
+		if (bind(listenfd, curaddr->ai_addr, curaddr->ai_addrlen) == 0)
+			break;
+	}
 
-    freeaddrinfo(addrlist);
+	if (curaddr == NULL){
+		perror("bind");
+		exit(EXIT_FAILURE);
+	}
 
-    if (listen(listenfd, BACKLOG) == -1){
-    	perror ("listen");
-    }
+	freeaddrinfo(addrlist);
 
-    for (int i = 0; i < BACKLOG; i++)
-    	clients[i] = -1;
+	if (listen(listenfd, BACKLOG) == -1){
+		perror ("listen");
+	}
 
-    return;
+	for (int i = 0; i < BACKLOG; i++)
+		clients[i] = -1;
+
+	return;
 }
 
 void Server(){
 	struct sockaddr clientaddr;
-	socklen_t addrlen;
+	ssize_t addrlen;
 	int i = 0;
 
 	StartServer();
@@ -137,7 +135,7 @@ void Server(){
 				perror("recv");
 				continue;
 			}
-			if (numbytes = 0){
+			if (numbytes == 0){
 				printf("%d connection failed", i);
 				continue;
 			}
@@ -151,7 +149,7 @@ void Server(){
 			close(clients[i]);
 			exit(0);
 		}
-	close (clients[i]);
+		close (clients[i]);
 	}
 }
 
