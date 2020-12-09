@@ -10,7 +10,7 @@
 #include <netdb.h>
 //46.147.148.254    192.168.0.101 
 enum {BACKLOG = 10}; // how many pending connections queue will hold
-const char *PORT = "7707";  // the port users will be connecting to
+const char *PORT = "7777";  // the port users will be connecting to
 const int BUFSIZE = 4096;
 const char* GET = "GET / HTTP/1.1\r\n";
 const char* OK = "HTTP/1.1 200 OK\r\n\r\n";
@@ -18,54 +18,66 @@ const char* NOT_FOUND = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
 
 static int listenfd, clients[BACKLOG];
 
+int SearchAnalyse(char *request){
+	int fd = -1;
+	printf ("%s", strtok(request, "="));
+	char *reqw = strtok(NULL, " \0");
+
+	//printf ("SearchAnalyse : %s\n", reqw);		
+	
+	if (strcmp(reqw, "FRKT") == 0){
+		if ((fd = open ("Html/FRKT.html", O_RDONLY)) < 0)
+			perror ("open");
+	}else if (strcmp(reqw, "FOPF") == 0){
+		if ((fd = open ("Html/FOPF.html", O_RDONLY)) < 0)
+			perror ("open");
+	}
+	printf ("fd : %d", fd);
+	return fd;
+}
+
+
 const char * ReqAnalyse(char *request){
-	int fd = -4;
+	int fd = -1;
 	char *response = (char *)malloc(BUFSIZE);
 
 	if (strlen(request) >= strlen(GET)){
-		char *begin = strtok(request, "/");
-		char *reqw = strtok(NULL, " ");
-
-		//printf ("ReqAnalyse : %s\n", reqw);		
-
-		begin = strtok(reqw, "=");
-		reqw = strtok (NULL, "\0");
+		strtok(request, "/");
+		char *reqw = strtok(NULL, " \r");
+		char *reqs = NULL;
 
 		//printf ("ReqAnalyse : %s\n", reqw);
 
-		/*if (strcmp(reqw, "FRKT") == 0){
-			if ((fd = open ("Html/FRKT.html", O_RDONLY)) < 0)
+		if (strcmp(reqw, "HTTP/1.1") == 0){
+			printf ("%d", fd);
+			if ((fd = open ("Html/Hello.html", O_RDONLY)) < 0)
+				perror ("open");
+		} else if ((reqs = strchr(reqw, '?')) != NULL){
+			fd = SearchAnalyse(reqs);
+		} else if ((fd = open (reqw, O_RDONLY)) < 0){
+			printf ("FilehAnalyse");		
 				perror ("open");
 		}
 
-		if (strcmp(reqw, "FOPF") == 0){
-			printf ("!!!");
-			if ((fd = open ("Html/FOPF.html", O_RDONLY)) < 0)
-				perror ("open");
-		}
+		//printf ("fd : %d", fd);
 
 		if (fd == -1){
 			strcat(response, NOT_FOUND);
 			return response;
-		}*/
+		}
 
 		strcat(response, OK);
-
-		if ((fd = open ("Html/Hello.html", O_RDONLY)) < 0){
-			perror ("open");
-			return response;
-		}
 		int k = read(fd, response + strlen(OK), BUFSIZE);
 		if(k < 0)
 			perror ("read");
 		close(fd);
 		return response;
 	}
-	return OK;
+	strcat(response, NOT_FOUND);
+	return response;
 }
 
-void StartServer()
-{
+void StartServer(){
 
 	struct addrinfo hints, *addrlist = (struct addrinfo *)malloc(sizeof(struct addrinfo)), *curaddr;
 	
@@ -110,8 +122,6 @@ void StartServer()
 }
 
 void Server(){
-	struct sockaddr clientaddr;
-	ssize_t addrlen;
 	int i = 0;
 
 	StartServer();
@@ -119,7 +129,6 @@ void Server(){
 	printf ("waiting for connection......\n");
 
 	for(;;){
-		addrlen = sizeof(clientaddr);
 		clients[i] = accept(listenfd, NULL, 0);
 		if (clients[i] < 0){
 			perror("accept");
@@ -154,7 +163,8 @@ void Server(){
 }
 
 
-int main()
-{
+int main(){
+	
 	Server();
+	return 0;
 }
