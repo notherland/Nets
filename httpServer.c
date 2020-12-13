@@ -8,9 +8,9 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
-//46.147.148.254    192.168.0.101 
+//46.147.148.167    192.168.0.101 
 enum {BACKLOG = 10}; // how many pending connections queue will hold
-const char *PORT = "7777";  // the port users will be connecting to
+const char *PORT = "7707";  // the port users will be connecting to
 const int BUFSIZE = 4096;
 const char* GET = "GET / HTTP/1.1\r\n";
 const char* OK = "HTTP/1.1 200 OK\r\n\r\n";
@@ -20,10 +20,8 @@ static int listenfd, clients[BACKLOG];
 
 int SearchAnalyse(char *request){
 	int fd = -1;
-	printf ("%s", strtok(request, "="));
-	char *reqw = strtok(NULL, " \0");
-
-	//printf ("SearchAnalyse : %s\n", reqw);		
+	strtok(request, "=");
+	char *reqw = strtok(NULL, " \0");	
 	
 	if (strcmp(reqw, "FRKT") == 0){
 		if ((fd = open ("Html/FRKT.html", O_RDONLY)) < 0)
@@ -32,7 +30,6 @@ int SearchAnalyse(char *request){
 		if ((fd = open ("Html/FOPF.html", O_RDONLY)) < 0)
 			perror ("open");
 	}
-	printf ("fd : %d", fd);
 	return fd;
 }
 
@@ -46,20 +43,14 @@ const char * ReqAnalyse(char *request){
 		char *reqw = strtok(NULL, " \r");
 		char *reqs = NULL;
 
-		//printf ("ReqAnalyse : %s\n", reqw);
-
 		if (strcmp(reqw, "HTTP/1.1") == 0){
-			printf ("%d", fd);
 			if ((fd = open ("Html/Hello.html", O_RDONLY)) < 0)
 				perror ("open");
 		} else if ((reqs = strchr(reqw, '?')) != NULL){
 			fd = SearchAnalyse(reqs);
 		} else if ((fd = open (reqw, O_RDONLY)) < 0){
-			printf ("FilehAnalyse");		
 				perror ("open");
 		}
-
-		//printf ("fd : %d", fd);
 
 		if (fd == -1){
 			strcat(response, NOT_FOUND);
@@ -129,6 +120,14 @@ void Server(){
 	printf ("waiting for connection......\n");
 
 	for(;;){
+		while(clients[i] != -1){
+			i++;
+			if (i > BACKLOG){
+				printf("Too many clients\n");
+				i = 0;
+				continue;
+			}
+		}
 		clients[i] = accept(listenfd, NULL, 0);
 		if (clients[i] < 0){
 			perror("accept");
@@ -146,7 +145,8 @@ void Server(){
 			}
 			if (numbytes == 0){
 				printf("%d connection failed", i);
-				continue;
+				clients[i] = -1;
+				exit(0);
 			}
 
 			printf ("------------------------\nRequest: \n%s\n--------------------------\n", request);
@@ -156,9 +156,11 @@ void Server(){
 			if(send(clients[i], response, strlen(response), 0) == -1)
 				perror("send");
 			close(clients[i]);
+			clients[i] = -1;
 			exit(0);
 		}
-		close (clients[i]);
+		close(clients[i]);
+		clients[i] = -1;
 	}
 }
 
